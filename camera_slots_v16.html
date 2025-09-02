@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Camera Slots 🎰 (v16 Mobile Optimized)</title>
+  <style>
+    body {
+      margin:0; background:#000; color:#fff; overflow:hidden;
+      font-family:'Courier New', monospace;
+    }
+    canvas { display:block; margin:0 auto; background:#000; }
+    #status { margin-top:10px; font-size:18px; text-align:center; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
+</head>
+<body>
+  <h1 style="color:#ff0; text-shadow:0 0 10px #f0f, 0 0 20px #f0f; text-align:center;">🎰 Retro Camera Slots</h1>
+  <canvas id="output"></canvas>
+  <div id="status">Initializing...</div>
+
+  <script>
+    const canvas = document.getElementById("output");
+    const ctx = canvas.getContext("2d");
+    const statusEl = document.getElementById("status");
+    let detector, video;
+    let grabbing=false, knobY=200, baseKnobY=200, spinning=false;
+
+    let reels = [[1,2,3,4,5,6,7,8,9],[1,2,3,4,5,6,7,8,9],[1,2,3,4,5,6,7,8,9]];
+    let reelOffset=[0,0,0];
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.setTransform(1,0,0,1,0,0); // reset
+      ctx.scale(dpr, dpr);
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+      baseKnobY = window.innerHeight/2 - 50;
+      knobY = baseKnobY;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    async function initCam() {
+      video = document.createElement("video");
+      video.setAttribute("playsinline", true); // iOS Safari requirement
+      video.muted = true;
+      video.autoplay = true;
+      const stream = await navigator.mediaDevices.getUserMedia({video:true});
+      video.srcObject = stream;
+      await video.play();
+    }
+
+    async function initModel() {
+      await tf.setBackend('webgl');
+      detector = await handPoseDetection.createDetector(
+        handPoseDetection.SupportedModels.MediaPipeHands,
+        { runtime: "mediapipe", solutionPath: "https://cdn.jsdelivr.net/npm/@mediapipe/hands" }
+      );
+      console.log("✅ Model loaded with MediaPipe runtime");
+    }
+
+    function drawReels() {
+      const boxW=400, boxH=300;
+      const boxX=window.innerWidth/2-boxW/2, boxY=window.innerHeight/2-boxH/2;
+
+      ctx.fillStyle = "#111";
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(boxX, boxY, boxW, boxH);
+      ctx.clip();
+
+      ctx.fillStyle="#ff0";
+      ctx.font="60px Courier New";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+
+      for (let col=0;col<3;col++){
+        for (let row=0;row<reels[col].length;row++){
+          let value = reels[col][row];
+          let y = boxY + 60 + row*100 - (reelOffset[col]%1)*100;
+          ctx.fillText(value, boxX+70+col*120, y);
+        }
+      }
+      ctx.restore();
+
+      ctx.strokeStyle="#0ff";
+      ctx.lineWidth=6;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+    }
+
+    function spinReels() {
+      spinning=true;
+      let speed=[0.4,0.45,0.5];
+      let duration=80;
+      let frame=0;
+
+      function animate(){
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        frame++;
+        for (let i=0;i<3;i++){
+          if (frame<duration+i*15){
+            reelOffset[i]+=speed[i];
+            if (reelOffset[i]>=reels[i].length) reelOffset[i]=0;
+          }
+        }
+        drawReels();
+        drawHandle();
+        if (frame<duration+40) requestAnimationFrame(animate);
+        else {
+          spinning=false;
+          knobY=baseKnobY;
+        }
+      }
+      animate();
+    }
+
+    function drawHandle() {
+      const barX=window.innerWidth-120;
+      ctx.fillStyle="#888";
+      ctx.fillRect(barX, baseKnobY, 20, 200);
+      ctx.beginPath();
+      ctx.arc(barX+10, knobY, 30, 0, Math.PI*2);
+      ctx.fillStyle = grabbing ? "#f00":"#ff0";
+      ctx.shadowColor = grabbing ? "#f00":"#ff0";
+      ctx.shadowBlur = 20;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function drawHand(hand) {
+      if (!video.videoWidth || !video.videoHeight) return; // prevent invalid scaling
+      const kp=hand.keypoints;
+      ctx.strokeStyle="#0ff"; ctx.fillStyle="#0ff";
+      kp.forEach(p=>{
+        let x = window.innerWidth - p.x * (window.innerWidth/video.videoWidth); 
+        let y = p.y * (window.innerHeight/video.videoHeight);
+        ctx.beginPath();
+        ctx.arc(x,y,5,0,2*Math.PI);
+        ctx.fill();
+      });
+    }
+
+    async function detectLoop() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      let hands=[];
+      if (detector) hands=await detector.estimateHands(video);
+
+      if (hands.length>0){
+        statusEl.textContent="🙌 Hand detected";
+        drawHand(hands[0]);
+
+        const kp=hands[0].keypoints;
+        const thumb=kp.find(pt=>pt.name==="thumb_tip");
+        const index=kp.find(pt=>pt.name==="index_finger_tip");
+        const wrist=kp.find(pt=>pt.name==="wrist");
+
+        if (thumb&&index&&wrist && video.videoWidth>0){
+          let ix=window.innerWidth-index.x*(window.innerWidth/video.videoWidth), iy=index.y*(window.innerHeight/video.videoHeight);
+          let tx=window.innerWidth-thumb.x*(window.innerWidth/video.videoWidth), ty=thumb.y*(window.innerHeight/video.videoHeight);
+          let wx=window.innerWidth-wrist.x*(window.innerWidth/video.videoWidth), wy=wrist.y*(window.innerHeight/video.videoHeight);
+
+          let d=Math.hypot(ix-tx, iy-ty);
+          let grabbingNow=d<40;
+          let knobX=window.innerWidth-110, knobYpos=knobY;
+          let distHandle=Math.hypot(ix-knobX, iy-knobYpos);
+
+          if (grabbingNow && distHandle<60 && !spinning){
+            grabbing=true;
+            knobY=Math.min(baseKnobY+120, wy);
+          } else if (grabbing && !grabbingNow){
+            grabbing=false;
+            if (knobY>baseKnobY+80){
+              spinReels();
+            } else {
+              knobY=baseKnobY;
+            }
+          }
+        }
+      } else {
+        statusEl.textContent="❌ No hands detected";
+      }
+
+      drawReels();
+      drawHandle();
+      requestAnimationFrame(detectLoop);
+    }
+
+    (async()=>{
+      await initCam();
+      await initModel();
+      detectLoop();
+    })();
+  </script>
+</body>
+</html>
