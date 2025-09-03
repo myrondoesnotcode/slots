@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Camera Slots 🎰 (v18 with Sounds)</title>
+  <style>
+    body {
+      margin:0; background:#000; color:#fff; overflow:hidden;
+      font-family:'Courier New', monospace;
+    }
+    canvas { display:block; margin:0 auto; background:#000; }
+    #status { margin-top:10px; font-size:18px; text-align:center; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection"></script>
+</head>
+<body>
+  <h1 style="color:#ff0; text-shadow:0 0 10px #f0f, 0 0 20px #f0f; text-align:center;">🎰 Retro Camera Slots</h1>
+  <canvas id="output"></canvas>
+  <div id="status">Initializing...</div>
+
+  <!-- Embedded audio -->
+  <audio id="pullSound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="></audio>
+  <audio id="spinSound" loop src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="></audio>
+  <audio id="winSound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="></audio>
+  <audio id="loseSound" src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="></audio>
+
+  <script>
+    const canvas = document.getElementById("output");
+    const ctx = canvas.getContext("2d");
+    const statusEl = document.getElementById("status");
+
+    const pullSound=document.getElementById("pullSound");
+    const spinSound=document.getElementById("spinSound");
+    const winSound=document.getElementById("winSound");
+    const loseSound=document.getElementById("loseSound");
+
+    let detector, video;
+    let grabbing=false, knobY=200, baseKnobY=200, spinning=false;
+
+    let reels = [
+      ["🍒","🍋","🍇","⭐","🔔","7️⃣"],
+      ["🍒","🍋","🍇","⭐","🔔","7️⃣"],
+      ["🍒","🍋","🍇","⭐","🔔","7️⃣"]
+    ];
+    let reelOffset=[0,0,0];
+    let confetti=[];
+    let jackpotGlow=false, glowFrame=0;
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.scale(dpr, dpr);
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+      baseKnobY = window.innerHeight/2 - 50;
+      knobY = baseKnobY;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    async function initCam() {
+      video = document.createElement("video");
+      video.setAttribute("playsinline", true);
+      video.muted = true;
+      video.autoplay = true;
+      const stream = await navigator.mediaDevices.getUserMedia({video:true});
+      video.srcObject = stream;
+      await video.play();
+    }
+
+    async function initModel() {
+      await tf.setBackend('webgl');
+      detector = await handPoseDetection.createDetector(
+        handPoseDetection.SupportedModels.MediaPipeHands,
+        { runtime: "mediapipe", solutionPath: "https://cdn.jsdelivr.net/npm/@mediapipe/hands" }
+      );
+      console.log("✅ Model loaded with MediaPipe runtime");
+    }
+
+    function drawReels() {
+      const boxW=400, boxH=300;
+      const boxX=window.innerWidth/2-boxW/2, boxY=window.innerHeight/2-boxH/2;
+
+      ctx.fillStyle = "#111";
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(boxX, boxY, boxW, boxH);
+      ctx.clip();
+
+      ctx.fillStyle="#fff";
+      ctx.font="80px sans-serif";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+
+      for (let col=0;col<3;col++){
+        for (let row=0;row<reels[col].length;row++){
+          let value = reels[col][row];
+          let y = boxY + 80 + row*100 - (reelOffset[col]%1)*100;
+          ctx.fillText(value, boxX+70+col*120, y);
+        }
+      }
+      ctx.restore();
+
+      // Neon border
+      ctx.strokeStyle= jackpotGlow ? "#ff0":"#0ff";
+      ctx.shadowColor= jackpotGlow ? "#ff0":"#f0f";
+      ctx.shadowBlur= jackpotGlow ? (10+Math.sin(glowFrame/5)*10):20;
+      ctx.lineWidth=6;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+      ctx.shadowBlur=0;
+
+      if (jackpotGlow) glowFrame++;
+    }
+
+    function spinReels() {
+      spinning=true;
+      let speed=[0.4,0.45,0.5];
+      let duration=80;
+      let frame=0;
+      let finalSymbols=[];
+      let jackpot = Math.random()<0.2;
+
+      if (jackpot) {
+        let symbol = reels[0][Math.floor(Math.random()*reels[0].length)];
+        finalSymbols=[symbol,symbol,symbol];
+      }
+
+      pullSound.play();
+      spinSound.play();
+
+      function animate(){
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        frame++;
+        for (let i=0;i<3;i++){
+          if (frame<duration+i*15){
+            reelOffset[i]+=speed[i];
+            if (reelOffset[i]>=reels[i].length) reelOffset[i]=0;
+          } else {
+            if (jackpot){
+              let idx=reels[i].indexOf(finalSymbols[i]);
+              reelOffset[i]=idx;
+            } else {
+              reelOffset[i]=Math.floor(Math.random()*reels[i].length);
+              finalSymbols[i]=reels[i][reelOffset[i]];
+            }
+          }
+        }
+        drawReels();
+        drawHandle();
+        drawConfetti();
+        if (frame<duration+40) requestAnimationFrame(animate);
+        else {
+          spinning=false;
+          knobY=baseKnobY;
+          spinSound.pause();
+          spinSound.currentTime=0;
+          if (finalSymbols[0]===finalSymbols[1] && finalSymbols[1]===finalSymbols[2]){
+            winSound.play();
+            launchConfetti();
+            jackpotGlow=true;
+            setTimeout(()=>jackpotGlow=false,2000);
+          } else {
+            loseSound.play();
+          }
+        }
+      }
+      animate();
+    }
+
+    function drawHandle() {
+      const barX=window.innerWidth-120;
+      ctx.fillStyle="#888";
+      ctx.fillRect(barX, baseKnobY, 20, 200);
+      ctx.beginPath();
+      ctx.arc(barX+10, knobY, 30, 0, Math.PI*2);
+      ctx.fillStyle = grabbing ? "#f00":"#ff0";
+      ctx.shadowColor = grabbing ? "#f00":"#ff0";
+      ctx.shadowBlur = 20;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function drawHand(hand) {
+      if (!video.videoWidth || !video.videoHeight) return;
+      const kp=hand.keypoints;
+      ctx.strokeStyle="#0ff"; ctx.fillStyle="#0ff";
+      kp.forEach(p=>{
+        let x = window.innerWidth - p.x * (window.innerWidth/video.videoWidth); 
+        let y = p.y * (window.innerHeight/video.videoHeight);
+        ctx.beginPath();
+        ctx.arc(x,y,5,0,2*Math.PI);
+        ctx.fill();
+      });
+    }
+
+    function launchConfetti(){
+      for (let i=0;i<80;i++){
+        confetti.push({
+          x: Math.random()*window.innerWidth,
+          y: Math.random()*window.innerHeight/2,
+          dx: (Math.random()-0.5)*4,
+          dy: Math.random()*3+2,
+          color: `hsl(${Math.random()*360},100%,50%)`,
+          size: Math.random()*6+4
+        });
+      }
+    }
+
+    function drawConfetti(){
+      confetti.forEach(c=>{
+        ctx.fillStyle=c.color;
+        ctx.fillRect(c.x,c.y,c.size,c.size);
+        c.x+=c.dx;
+        c.y+=c.dy;
+        c.dy+=0.1;
+      });
+      confetti = confetti.filter(c=>c.y<window.innerHeight);
+    }
+
+    async function detectLoop() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      let hands=[];
+      if (detector) hands=await detector.estimateHands(video);
+
+      if (hands.length>0){
+        statusEl.textContent="🙌 Hand detected";
+        drawHand(hands[0]);
+
+        const kp=hands[0].keypoints;
+        const thumb=kp.find(pt=>pt.name==="thumb_tip");
+        const index=kp.find(pt=>pt.name==="index_finger_tip");
+        const wrist=kp.find(pt=>pt.name==="wrist");
+
+        if (thumb&&index&&wrist && video.videoWidth>0){
+          let ix=window.innerWidth-index.x*(window.innerWidth/video.videoWidth), iy=index.y*(window.innerHeight/video.videoHeight);
+          let tx=window.innerWidth-thumb.x*(window.innerWidth/video.videoWidth), ty=thumb.y*(window.innerHeight/video.videoHeight);
+          let wx=window.innerWidth-wrist.x*(window.innerWidth/video.videoWidth), wy=wrist.y*(window.innerHeight/video.videoHeight);
+
+          let d=Math.hypot(ix-tx, iy-ty);
+          let grabbingNow=d<40;
+          let knobX=window.innerWidth-110, knobYpos=knobY;
+          let distHandle=Math.hypot(ix-knobX, iy-knobYpos);
+
+          if (grabbingNow && distHandle<60 && !spinning){
+            grabbing=true;
+            knobY=Math.min(baseKnobY+120, wy);
+          } else if (grabbing && !grabbingNow){
+            grabbing=false;
+            if (knobY>baseKnobY+80){
+              spinReels();
+            } else {
+              knobY=baseKnobY;
+            }
+          }
+        }
+      } else {
+        statusEl.textContent="❌ No hands detected";
+      }
+
+      drawReels();
+      drawHandle();
+      drawConfetti();
+      requestAnimationFrame(detectLoop);
+    }
+
+    (async()=>{
+      await initCam();
+      await initModel();
+      detectLoop();
+    })();
+  </script>
+</body>
+</html>
