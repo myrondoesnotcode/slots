@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gesture Controlled Slots</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- MediaPipe Hands and Camera Utils -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            /* Deep Casino Red/Purple Background */
+            background: radial-gradient(circle at center, #2e0228 0%, #1a0115 100%);
+            color: white;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            cursor: none; /* Hide default mouse cursor for immersion */
+        }
+
+        /* The canvas sits on top for the hand skeleton and confetti */
+        #output_canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            pointer-events: none;
+            /* Flipped horizontally to create a mirror effect for the skeleton */
+            transform: scaleX(-1);
+        }
+
+        #input_video { display: none; }
+
+        /* Slot Machine Styles */
+        .slot-machine {
+            background: linear-gradient(to bottom, #4a0e4e 0%, #250229 100%);
+            border: 8px solid #ffd700;
+            box-shadow: 
+                0 0 20px rgba(255, 215, 0, 0.5),
+                inset 0 0 50px rgba(0,0,0,0.8);
+            border-radius: 40px;
+            padding: 40px;
+            position: relative;
+            z-index: 10;
+            transform: scale(1.1);
+        }
+
+        .title-sign {
+            background: #000;
+            color: #fff;
+            padding: 10px 30px;
+            border-radius: 100px;
+            border: 4px solid #f0f;
+            box-shadow: 0 0 15px #f0f;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            font-weight: 900;
+            letter-spacing: 3px;
+            text-shadow: 0 0 5px #fff;
+        }
+
+        .reel-window {
+            background: #000;
+            padding: 20px;
+            border-radius: 15px;
+            border: 4px solid #555;
+            box-shadow: inset 0 0 20px rgba(0,0,0,1);
+            display: flex;
+            gap: 15px;
+        }
+
+        .reel {
+            width: 100px;
+            height: 140px;
+            background-color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        /* Spinning Animation Blur */
+        .reel.spinning span {
+            animation: scroll 0.1s linear infinite;
+            filter: blur(4px);
+        }
+
+        @keyframes scroll {
+            0% { transform: translateY(-50%); opacity: 0.8; }
+            100% { transform: translateY(50%); opacity: 0.8; }
+        }
+
+        /* Lever Zone */
+        .lever-base {
+            position: absolute;
+            right: -60px;
+            bottom: 50px;
+            width: 40px;
+            height: 100px;
+            background: #555;
+            border-radius: 0 20px 20px 0;
+            border: 2px solid #333;
+            z-index: 5;
+        }
+
+        .lever-arm {
+            position: absolute;
+            bottom: 60px; /* Pivot point */
+            right: -40px;
+            width: 15px;
+            height: 150px; /* Shortened from 180px to keep on screen */
+            background: linear-gradient(to right, #ccc, #fff, #ccc);
+            transform-origin: bottom center;
+            transform: rotate(0deg); /* Resting state */
+            transition: transform 0.1s ease-out; /* Fast reaction */
+            border-radius: 5px;
+            z-index: 4;
+        }
+
+        .lever-knob {
+            width: 70px; 
+            height: 70px;
+            background: radial-gradient(circle at 30% 30%, #ff4d4d, #990000);
+            border-radius: 50%;
+            position: absolute;
+            top: -35px;
+            left: -28px;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.5);
+            cursor: pointer;
+            z-index: 20;
+            transition: all 0.2s;
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+
+        /* Visual Feedback States for Knob */
+        .lever-knob.hovered {
+            background: radial-gradient(circle at 30% 30%, #4ade80, #166534); /* Green */
+            box-shadow: 0 0 20px #4ade80;
+            transform: scale(1.2);
+        }
+
+        .lever-knob.pulled {
+            background: radial-gradient(circle at 30% 30%, #fbbf24, #b45309); /* Yellow/Gold */
+            box-shadow: 0 0 30px #fbbf24;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .stat-box {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #555;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 100px;
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        /* Win Message Animation */
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .win-pop {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen pt-20 pb-40">
+
+    <!-- Loading Screen -->
+    <div id="loading" class="loading-screen">
+        <h1 class="text-4xl text-yellow-400 mb-4 font-bold">Setting up Casino...</h1>
+        <p class="text-gray-400">Please enable your camera to control the hand.</p>
+        <p class="text-gray-600 text-sm mt-2">(Your video is NOT shown on screen)</p>
+    </div>
+
+    <!-- Hidden Video Source -->
+    <video id="input_video"></video>
+
+    <!-- Canvas for Virtual Hand & Confetti -->
+    <canvas id="output_canvas"></canvas>
+
+    <!-- Game Container -->
+    <div class="flex flex-col items-center relative">
+        
+        <div class="slot-machine">
+            <div class="flex justify-center w-full">
+                <div class="title-sign">Lucky Gestures</div>
+            </div>
+
+            <div class="reel-window">
+                <div class="reel" id="reel1"><span>7️⃣</span></div>
+                <div class="reel" id="reel2"><span>7️⃣</span></div>
+                <div class="reel" id="reel3"><span>7️⃣</span></div>
+            </div>
+
+            <!-- The Mechanical Lever Structure -->
+            <div class="lever-base"></div>
+            <div class="lever-arm" id="lever-arm">
+                <div class="lever-knob" id="lever-knob"></div>
+            </div>
+        </div>
+
+        <div id="win-message" class="h-16 mt-6 text-4xl font-extrabold text-yellow-300 drop-shadow-lg text-center"></div>
+
+        <div class="stats-panel">
+            <div class="stat-box">
+                <div class="text-xs text-gray-400 uppercase">Credits</div>
+                <div id="score" class="text-2xl font-mono text-green-400">1000</div>
+            </div>
+            <div class="stat-box">
+                <div class="text-xs text-gray-400 uppercase">Wins</div>
+                <div id="wins-count" class="text-2xl font-mono text-yellow-400">0</div>
+            </div>
+            <div class="stat-box">
+                <div class="text-xs text-gray-400 uppercase">Spins</div>
+                <div id="spins-count" class="text-2xl font-mono text-blue-400">0</div>
+            </div>
+        </div>
+
+        <div class="mt-8 text-gray-400 text-sm bg-black/50 px-4 py-2 rounded-full border border-gray-700">
+            Instruction: Hover until knob turns <span class="text-green-400 font-bold">GREEN</span>, <span class="text-white font-bold">MAKE A FIST</span>, PULL DOWN, then <span class="text-yellow-400 font-bold">OPEN HAND</span> to spin.
+        </div>
+    </div>
+
+    <script>
+        // --- GAME LOGIC ---
+        const symbols = ['🍒', '🍋', '🍇', '💎', '7️⃣', '🔔', '🍀'];
+        let score = 1000;
+        let wins = 0;
+        let spins = 0;
+        let isSpinning = false;
+        
+        const reelElements = [document.getElementById('reel1'), document.getElementById('reel2'), document.getElementById('reel3')];
+        const winMessage = document.getElementById('win-message');
+        const scoreEl = document.getElementById('score');
+        const winsEl = document.getElementById('wins-count');
+        const spinsEl = document.getElementById('spins-count');
+        const leverArm = document.getElementById('lever-arm');
+
+        // Simple Audio Context
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const now = audioCtx.currentTime;
+            
+            if (type === 'spin') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } else if (type === 'stop') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now);
+                osc.stop(now + 0.1);
+            } else if (type === 'win') {
+                osc.type = 'triangle';
+                [440, 554, 659, 880].forEach((freq, i) => {
+                    const osc2 = audioCtx.createOscillator();
+                    const gain2 = audioCtx.createGain();
+                    osc2.type = 'triangle';
+                    osc2.frequency.setValueAtTime(freq, now + i*0.1);
+                    gain2.gain.setValueAtTime(0.1, now + i*0.1);
+                    gain2.gain.linearRampToValueAtTime(0, now + i*0.1 + 0.3);
+                    osc2.connect(gain2);
+                    gain2.connect(audioCtx.destination);
+                    osc2.start(now + i*0.1);
+                    osc2.stop(now + i*0.1 + 0.3);
+                });
+            } else if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.05, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.05);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } else if (type === 'cocked') {
+                 // Sound when lever is fully pulled down and ready
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(100, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+        }
+
+        function triggerSpin() {
+            if (isSpinning || score < 10) return;
+            
+            isSpinning = true;
+            score -= 10;
+            spins++;
+            
+            updateStats();
+            winMessage.innerText = "";
+            winMessage.className = "h-16 mt-6 text-4xl font-extrabold text-yellow-300 drop-shadow-lg text-center"; 
+            
+            playSound('spin');
+            reelElements.forEach(reel => reel.classList.add('spinning'));
+
+            const stopTimes = [1000, 1600, 2200];
+            let results = [];
+
+            stopTimes.forEach((time, index) => {
+                setTimeout(() => {
+                    reelElements[index].classList.remove('spinning');
+                    const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+                    reelElements[index].innerHTML = `<span>${symbol}</span>`;
+                    results.push(symbol);
+                    playSound('stop');
+
+                    if (index === 2) {
+                        checkWin(results);
+                        isSpinning = false;
+                        animateLever(0);
+                    }
+                }, time);
+            });
+        }
+
+        function checkWin(results) {
+            let won = false;
+            let winAmount = 0;
+
+            if (results[0] === results[1] && results[1] === results[2]) {
+                winAmount = 500;
+                winMessage.innerText = "JACKPOT! 💎";
+                winMessage.classList.add('win-pop');
+                playSound('win');
+                startConfetti();
+                won = true;
+            } else if (results[0] === results[1] || results[1] === results[2] || results[0] === results[2]) {
+                winAmount = 50;
+                winMessage.innerText = "NICE MATCH!";
+                winMessage.classList.add('win-pop');
+                playSound('win');
+                startConfetti();
+                won = true;
+            } else {
+                winMessage.innerText = "";
+            }
+
+            if (won) {
+                score += winAmount;
+                wins++;
+                setTimeout(stopConfetti, 3000);
+            }
+            updateStats();
+        }
+
+        function updateStats() {
+            scoreEl.innerText = score;
+            winsEl.innerText = wins;
+            spinsEl.innerText = spins;
+        }
+
+        function animateLever(angle) {
+            leverArm.style.transform = `rotate(${angle}deg)`;
+        }
+
+
+        // --- CONFETTI SYSTEM ---
+        let particles = [];
+        let confettiActive = false;
+
+        function startConfetti() {
+            confettiActive = true;
+            particles = [];
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight - window.innerHeight,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    size: Math.random() * 10 + 5,
+                    speedY: Math.random() * 5 + 2,
+                    speedX: (Math.random() - 0.5) * 4,
+                    rotation: Math.random() * 360,
+                    rotationSpeed: (Math.random() - 0.5) * 10
+                });
+            }
+        }
+
+        function stopConfetti() {
+            confettiActive = false;
+            particles = [];
+        }
+
+        function updateAndDrawConfetti(ctx) {
+            if (!confettiActive) return;
+
+            particles.forEach(p => {
+                p.y += p.speedY;
+                p.x += p.speedX;
+                p.rotation += p.rotationSpeed;
+                if (p.y > window.innerHeight) {
+                    p.y = -20;
+                    p.x = Math.random() * window.innerWidth;
+                }
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation * Math.PI / 180);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                ctx.restore();
+            });
+        }
+
+
+        // --- COMPUTER VISION LOGIC ---
+
+        const videoElement = document.getElementById('input_video');
+        const canvasElement = document.getElementById('output_canvas');
+        const canvasCtx = canvasElement.getContext('2d');
+        const leverKnob = document.getElementById('lever-knob');
+
+        let isHandClosed = false;
+        let isGrabbingLever = false;
+        let grabStartY = 0;
+        let readyToSpin = false;
+        
+        function getLeverRect() {
+            const rect = leverKnob.getBoundingClientRect();
+            return {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2
+            };
+        }
+
+        function onResults(results) {
+            document.getElementById('loading').style.display = 'none';
+
+            canvasElement.width = window.innerWidth;
+            canvasElement.height = window.innerHeight;
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+
+            updateAndDrawConfetti(canvasCtx);
+
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                
+                // Draw Skeleton (Mirrored via CSS)
+                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 5});
+                drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 2, radius: 4});
+
+                // Coordinates mapping
+                const handX = (1 - landmarks[9].x) * canvasElement.width;
+                const handY = landmarks[9].y * canvasElement.height;
+
+                // --- NEW GRAB DETECTION (Fist instead of Pinch) ---
+                // We check if fingers are curled into the palm.
+                // A simple check is if the tips are lower (higher Y) than the PIP joints (knuckles).
+                const indexTip = landmarks[8];
+                const indexPip = landmarks[6];
+                const middleTip = landmarks[12];
+                const middlePip = landmarks[10];
+                const ringTip = landmarks[16];
+                const ringPip = landmarks[14];
+                const pinkyTip = landmarks[20];
+                const pinkyPip = landmarks[18];
+
+                let curledFingers = 0;
+                if (indexTip.y > indexPip.y) curledFingers++;
+                if (middleTip.y > middlePip.y) curledFingers++;
+                if (ringTip.y > ringPip.y) curledFingers++;
+                if (pinkyTip.y > pinkyPip.y) curledFingers++;
+
+                // If 3 or more fingers are curled, we consider it a "Grab"
+                const isNowClosed = curledFingers >= 3;
+
+                if (isNowClosed && !isHandClosed) playSound('click');
+                isHandClosed = isNowClosed;
+
+                // LEVER INTERACTION
+                const leverPos = getLeverRect();
+                const distToLever = Math.hypot(handX - leverPos.x, handY - leverPos.y);
+                
+                const GRAB_RADIUS = 150; // Grab area
+
+                // Visual Feedback: Hover
+                if (distToLever < GRAB_RADIUS && !isGrabbingLever && !isSpinning) {
+                    leverKnob.classList.add('hovered');
+                } else {
+                    leverKnob.classList.remove('hovered');
+                }
+
+                if (isGrabbingLever) {
+                    if (isHandClosed) {
+                        // Dragging Phase
+                        const deltaY = handY - grabStartY;
+                        // Map deltaY to Angle. 
+                        // Cap at 130 degrees to keep it on screen
+                        let angle = Math.min(Math.max((deltaY * 0.6), 0), 130);
+                        animateLever(angle);
+
+                        // Threshold check (Triggers earlier now at 100 degrees)
+                        if (angle > 100) {
+                            if (!readyToSpin) {
+                                readyToSpin = true;
+                                leverKnob.classList.add('pulled');
+                                playSound('cocked'); // Mechanical click sound
+                            }
+                        } else {
+                            readyToSpin = false;
+                            leverKnob.classList.remove('pulled');
+                        }
+                    } else {
+                        // Release Phase
+                        isGrabbingLever = false;
+                        leverKnob.classList.remove('pulled');
+                        
+                        if (readyToSpin && !isSpinning) {
+                            triggerSpin();
+                        } 
+                        
+                        // Snap back
+                        if (!readyToSpin) {
+                             animateLever(0);
+                        }
+                        readyToSpin = false;
+                    }
+                } else {
+                    // Check if we start grabbing
+                    if (distToLever < GRAB_RADIUS && isHandClosed && !isSpinning) {
+                        isGrabbingLever = true;
+                        grabStartY = handY; // Set anchor point
+                        readyToSpin = false;
+                    }
+                }
+            }
+        }
+
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        const camera = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 1280,
+            height: 720
+        });
+
+        camera.start();
+
+    </script>
+</body>
+</html>
