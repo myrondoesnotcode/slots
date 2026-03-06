@@ -200,10 +200,16 @@
         <h1 class="text-4xl text-yellow-400 mb-4 font-bold">Setting up Casino...</h1>
         <p class="text-gray-400">Please enable your camera to control the hand.</p>
         <p class="text-gray-600 text-sm mt-2">(Your video is NOT shown on screen)</p>
+        <div id="loading-error" style="display:none; margin-top:20px; text-align:center;">
+            <p class="text-red-400 mb-4">Camera unavailable or timed out.</p>
+            <button id="skip-camera-btn" onclick="skipCamera()" style="background:#ffd700;color:#111;padding:12px 28px;border:none;border-radius:25px;font-size:1rem;font-weight:bold;cursor:pointer;">
+                Play Without Camera
+            </button>
+        </div>
     </div>
 
     <!-- Hidden Video Source -->
-    <video id="input_video"></video>
+    <video id="input_video" playsinline muted autoplay></video>
 
     <!-- Canvas for Virtual Hand & Confetti -->
     <canvas id="output_canvas"></canvas>
@@ -467,6 +473,7 @@
         }
 
         function onResults(results) {
+            clearTimeout(cameraTimeoutId);
             document.getElementById('loading').style.display = 'none';
 
             canvasElement.width = window.innerWidth;
@@ -569,28 +576,48 @@
             }
         }
 
+        // Detect mobile devices for performance tuning
+        const isMobile = /Mobi|Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
+
+        function skipCamera() {
+            clearTimeout(cameraTimeoutId);
+            document.getElementById('loading').style.display = 'none';
+        }
+
         const hands = new Hands({locateFile: (file) => {
             return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
         }});
 
         hands.setOptions({
             maxNumHands: 1,
-            modelComplexity: 1,
+            modelComplexity: isMobile ? 0 : 1,   // Lighter model on mobile
             minDetectionConfidence: 0.5,
             minTrackingConfidence: 0.5
         });
 
         hands.onResults(onResults);
 
+        // Show "Play Without Camera" button if setup takes too long (12s on mobile, 20s on desktop)
+        const cameraTimeoutId = setTimeout(() => {
+            document.getElementById('loading-error').style.display = 'block';
+        }, isMobile ? 12000 : 20000);
+
+        const camWidth  = isMobile ? 640 : 1280;
+        const camHeight = isMobile ? 360 : 720;
+
         const camera = new Camera(videoElement, {
             onFrame: async () => {
                 await hands.send({image: videoElement});
             },
-            width: 1280,
-            height: 720
+            width: camWidth,
+            height: camHeight
         });
 
-        camera.start();
+        camera.start().catch((err) => {
+            console.warn('Camera start failed:', err);
+            clearTimeout(cameraTimeoutId);
+            document.getElementById('loading-error').style.display = 'block';
+        });
 
     </script>
 </body>
