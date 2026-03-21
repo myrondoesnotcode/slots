@@ -191,6 +191,157 @@
         .win-pop {
             animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
+
+        /* Mobile portrait */
+        @media (max-width: 480px) {
+            body {
+                padding-top: 10px !important;
+                padding-bottom: 20px !important;
+            }
+
+            .slot-machine {
+                transform: none;
+                padding: 14px;
+                border-radius: 18px;
+                border-width: 4px;
+            }
+
+            .title-sign {
+                padding: 5px 14px;
+                letter-spacing: 1px;
+                font-size: 0.7rem;
+                border-width: 2px;
+                margin-bottom: 10px;
+            }
+
+            .reel-window {
+                padding: 8px;
+                gap: 6px;
+                border-width: 2px;
+            }
+
+            .reel {
+                width: 60px;
+                height: 85px;
+                font-size: 2.2rem;
+            }
+
+            .lever-base {
+                right: -25px;
+                bottom: 35px;
+                width: 20px;
+                height: 50px;
+            }
+
+            .lever-arm {
+                right: -18px;
+                bottom: 40px;
+                width: 8px;
+                height: 85px;
+            }
+
+            .lever-knob {
+                width: 36px;
+                height: 36px;
+                top: -18px;
+                left: -14px;
+            }
+
+            .stats-panel {
+                gap: 8px;
+                margin-top: 10px;
+            }
+
+            .stat-box {
+                padding: 6px 10px;
+                min-width: 65px;
+            }
+
+            .stat-box .text-2xl {
+                font-size: 1.1rem;
+            }
+
+            #win-message {
+                height: 2.5rem !important;
+                margin-top: 0.5rem !important;
+                font-size: 1.5rem !important;
+            }
+        }
+
+        /* Mobile landscape — requires BOTH short height AND narrow width to avoid desktop */
+        @media (max-height: 500px) and (max-width: 900px) {
+            body {
+                padding-top: 5px !important;
+                padding-bottom: 5px !important;
+            }
+
+            .slot-machine {
+                transform: none;
+                padding: 10px;
+                border-radius: 14px;
+                border-width: 3px;
+            }
+
+            .title-sign {
+                padding: 3px 10px;
+                margin-bottom: 6px;
+                font-size: 0.65rem;
+                border-width: 2px;
+            }
+
+            .reel-window {
+                padding: 6px;
+                gap: 6px;
+                border-width: 2px;
+            }
+
+            .reel {
+                width: 55px;
+                height: 70px;
+                font-size: 1.8rem;
+            }
+
+            .lever-base {
+                right: -25px;
+                bottom: 25px;
+                width: 20px;
+                height: 50px;
+            }
+
+            .lever-arm {
+                right: -18px;
+                bottom: 30px;
+                width: 8px;
+                height: 80px;
+            }
+
+            .lever-knob {
+                width: 34px;
+                height: 34px;
+                top: -17px;
+                left: -14px;
+            }
+
+            .stats-panel {
+                gap: 6px;
+                margin-top: 4px;
+            }
+
+            .stat-box {
+                padding: 3px 6px;
+                min-width: 55px;
+            }
+
+            .stat-box .text-2xl {
+                font-size: 1rem;
+            }
+
+            #win-message {
+                height: 1.5rem !important;
+                margin-top: 0.2rem !important;
+                font-size: 1rem !important;
+            }
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen pt-20 pb-40">
@@ -235,7 +386,7 @@
             </div>
         </div>
 
-        <div id="win-message" class="h-16 mt-6 text-4xl font-extrabold text-yellow-300 drop-shadow-lg text-center"></div>
+        <div id="win-message" class="h-16 mt-6 text-4xl sm:text-4xl text-2xl font-extrabold text-yellow-300 drop-shadow-lg text-center"></div>
 
         <div class="stats-panel">
             <div class="stat-box">
@@ -252,7 +403,7 @@
             </div>
         </div>
 
-        <div class="mt-8 text-gray-400 text-sm bg-black/50 px-4 py-2 rounded-full border border-gray-700">
+        <div class="mt-8 text-gray-400 text-sm bg-black/50 px-4 py-2 rounded-full border border-gray-700 max-w-[90vw] text-center">
             Instruction: Hover until knob turns <span class="text-green-400 font-bold">GREEN</span>, <span class="text-white font-bold">MAKE A FIST</span>, PULL DOWN, then <span class="text-yellow-400 font-bold">OPEN HAND</span> to spin.
         </div>
     </div>
