@@ -682,6 +682,14 @@
                 if (isNowClosed && !isHandClosed) playSound('click');
                 isHandClosed = isNowClosed;
 
+                // Pinch: thumb tip (4) and index tip (8) close together
+                const thumbTip = landmarks[4];
+                const thumbTipX = (1 - thumbTip.x) * canvasElement.width;
+                const thumbTipY = thumbTip.y * canvasElement.height;
+                const indexTipX = (1 - indexTip.x) * canvasElement.width;
+                const indexTipY = indexTip.y * canvasElement.height;
+                const isPinching = Math.hypot(thumbTipX - indexTipX, thumbTipY - indexTipY) < 40;
+
                 // LEVER INTERACTION
                 const leverPos = getLeverRect();
                 const distToLever = Math.hypot(handX - leverPos.x, handY - leverPos.y);
@@ -749,7 +757,7 @@
 
                     if (distToBtn < 80) {
                         btn.classList.add('hovered');
-                        if (isHandClosed && !buttonTapCooldown && !isSpinning) {
+                        if (isPinching && !buttonTapCooldown && !isSpinning) {
                             buttonTapCooldown = true;
                             openCurrentArticle();
                             playSound('click');
