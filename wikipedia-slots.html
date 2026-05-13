@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gesture Controlled Slots</title>
+    <title>Wikipedia Slots</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- MediaPipe Hands and Camera Utils -->
@@ -370,7 +370,7 @@
         
         <div class="slot-machine">
             <div class="flex justify-center w-full">
-                <div class="title-sign">Lucky Gestures</div>
+                <div class="title-sign">📖 WIKI SLOTS 📖</div>
             </div>
 
             <div class="reel-window">
@@ -386,20 +386,14 @@
             </div>
         </div>
 
-        <div id="win-message" class="h-16 mt-6 text-4xl sm:text-4xl text-2xl font-extrabold text-yellow-300 drop-shadow-lg text-center"></div>
-
         <div class="stats-panel">
             <div class="stat-box">
-                <div class="text-xs text-gray-400 uppercase">Credits</div>
-                <div id="score" class="text-2xl font-mono text-green-400">1000</div>
+                <div class="text-xs text-gray-400 uppercase">Articles</div>
+                <div id="articlesDisplay" class="text-2xl font-mono text-green-400">0</div>
             </div>
             <div class="stat-box">
-                <div class="text-xs text-gray-400 uppercase">Wins</div>
-                <div id="wins-count" class="text-2xl font-mono text-yellow-400">0</div>
-            </div>
-            <div class="stat-box">
-                <div class="text-xs text-gray-400 uppercase">Spins</div>
-                <div id="spins-count" class="text-2xl font-mono text-blue-400">0</div>
+                <div class="text-xs text-gray-400 uppercase">Pulls</div>
+                <div id="spinsDisplay" class="text-2xl font-mono text-blue-400">0</div>
             </div>
         </div>
 
