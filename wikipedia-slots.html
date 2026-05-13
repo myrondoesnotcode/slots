@@ -440,9 +440,9 @@
                     <div class="article-content" id="articleContent" style="display:none;">
                         <h2 class="article-title" id="articleTitle"></h2>
                         <div class="article-extract" id="articleExtract"></div>
-                        <button class="open-article-btn" id="openArticleBtn" onclick="openCurrentArticle()">
+                        <a class="open-article-btn" id="openArticleBtn" href="#" target="_blank" rel="noopener">
                             🔴 Open Article in New Tab
-                        </button>
+                        </a>
                     </div>
                 </div>
             </div>
@@ -595,6 +595,7 @@
             await new Promise(r => setTimeout(r, 700));
 
             currentArticleUrl = article.content_urls.desktop.page;
+            document.getElementById('openArticleBtn').href = currentArticleUrl;
             titleReel.style.display = 'none';
             document.getElementById('articleTitle').textContent = article.title;
             document.getElementById('articleExtract').textContent = article.extract;
@@ -759,7 +760,7 @@
                         btn.classList.add('hovered');
                         if (isPinching && !buttonTapCooldown && !isSpinning) {
                             buttonTapCooldown = true;
-                            openCurrentArticle();
+                            btn.click();
                             playSound('click');
                             setTimeout(() => { buttonTapCooldown = false; }, 1500);
                         }
