@@ -747,6 +747,27 @@
                         readyToSpin = false;
                     }
                 }
+
+                // Red button gesture detection
+                const btn = document.getElementById('openArticleBtn');
+                if (btn && btn.offsetParent !== null) {
+                    const btnRect = btn.getBoundingClientRect();
+                    const btnCenterX = btnRect.left + btnRect.width / 2;
+                    const btnCenterY = btnRect.top + btnRect.height / 2;
+                    const distToBtn = Math.hypot(handX - btnCenterX, handY - btnCenterY);
+
+                    if (distToBtn < 80) {
+                        btn.classList.add('hovered');
+                        if (isHandClosed && !buttonTapCooldown && !isSpinning) {
+                            buttonTapCooldown = true;
+                            openCurrentArticle();
+                            playSound('click');
+                            setTimeout(() => { buttonTapCooldown = false; }, 1500);
+                        }
+                    } else {
+                        btn.classList.remove('hovered');
+                    }
+                }
             }
         }
 
