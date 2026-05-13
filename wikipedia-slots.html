@@ -374,9 +374,18 @@
             </div>
 
             <div class="reel-window">
-                <div class="reel" id="reel1"><span>7️⃣</span></div>
-                <div class="reel" id="reel2"><span>7️⃣</span></div>
-                <div class="reel" id="reel3"><span>7️⃣</span></div>
+                <div class="article-container" id="articleContainer">
+                    <div class="article-titles-reel" id="titleReel">
+                        <div class="article-title-scroll" id="titleScroll"></div>
+                    </div>
+                    <div class="article-content" id="articleContent" style="display:none;">
+                        <h2 class="article-title" id="articleTitle"></h2>
+                        <div class="article-extract" id="articleExtract"></div>
+                        <button class="open-article-btn" id="openArticleBtn" onclick="openCurrentArticle()">
+                            🔴 Open Article in New Tab
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- The Mechanical Lever Structure -->
