@@ -760,7 +760,7 @@
                         btn.classList.add('hovered');
                         if (isPinching && !buttonTapCooldown && !isSpinning) {
                             buttonTapCooldown = true;
-                            btn.click();
+                            if (currentArticleUrl) window.location.href = currentArticleUrl;
                             playSound('click');
                             setTimeout(() => { buttonTapCooldown = false; }, 1500);
                         }
