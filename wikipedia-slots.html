@@ -407,13 +407,16 @@
 
     <!-- Loading Screen -->
     <div id="loading" class="loading-screen">
-        <h1 class="text-4xl text-yellow-400 mb-4 font-bold">Setting up Casino...</h1>
-        <p class="text-gray-400">Please enable your camera to control the hand.</p>
-        <p class="text-gray-600 text-sm mt-2">(Your video is NOT shown on screen)</p>
-        <div id="loading-error" style="display:none; margin-top:20px; text-align:center;">
-            <p class="text-red-400 mb-4">Camera unavailable or timed out.</p>
-            <button id="skip-camera-btn" onclick="skipCamera()" style="background:#ffd700;color:#111;padding:12px 28px;border:none;border-radius:25px;font-size:1rem;font-weight:bold;cursor:pointer;">
-                Play Without Camera
+        <div style="text-align:center; max-width:320px; padding: 0 20px;">
+            <div style="font-size:3rem; margin-bottom:16px;">📖🎰</div>
+            <h1 style="font-size:2rem; font-weight:900; color:#ffd700; margin-bottom:12px; letter-spacing:2px;">WIKI SLOTS</h1>
+            <p style="color:#e0e0e0; font-size:1rem; line-height:1.6; margin-bottom:8px;">Pull the lever. Get a random Wikipedia article.</p>
+            <p style="color:#aaa; font-size:0.85rem; line-height:1.5; margin-bottom:24px;">Use hand gestures via your camera, or pull with your mouse. Every pull reveals something new.</p>
+            <p style="color:#666; font-size:0.75rem;">(Enabling camera so you can control the lever with your hand — your video stays private)</p>
+        </div>
+        <div id="loading-error" style="display:none; margin-top:24px; text-align:center;">
+            <button id="skip-camera-btn" onclick="skipCamera()" style="background:#ffd700;color:#111;padding:14px 32px;border:none;border-radius:25px;font-size:1rem;font-weight:bold;cursor:pointer;letter-spacing:1px;">
+                Play Without Camera →
             </button>
         </div>
     </div>
