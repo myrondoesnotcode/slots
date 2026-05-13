@@ -573,74 +573,58 @@
             gain.connect(audioCtx.destination);
         }
 
-        function triggerSpin() {
-            if (isSpinning || score < 10) return;
-            
+        async function triggerSpin() {
+            if (isSpinning) return;
             isSpinning = true;
-            score -= 10;
             spins++;
-            
             updateStats();
-            winMessage.innerText = "";
-            winMessage.className = "h-16 mt-6 text-4xl font-extrabold text-yellow-300 drop-shadow-lg text-center"; 
-            
             playSound('spin');
-            reelElements.forEach(reel => reel.classList.add('spinning'));
 
-            const stopTimes = [1000, 1600, 2200];
-            let results = [];
+            document.getElementById('articleContent').style.display = 'none';
+            const titleScroll = document.getElementById('titleScroll');
+            const titleReel = document.getElementById('titleReel');
 
-            stopTimes.forEach((time, index) => {
-                setTimeout(() => {
-                    reelElements[index].classList.remove('spinning');
-                    const symbol = symbols[Math.floor(Math.random() * symbols.length)];
-                    reelElements[index].innerHTML = `<span>${symbol}</span>`;
-                    results.push(symbol);
-                    playSound('stop');
+            const displayTitles = [...prefetchedTitles, ...prefetchedTitles];
+            titleScroll.innerHTML = displayTitles.map(t =>
+                `<div class="scroll-title-item">${t}</div>`
+            ).join('');
+            titleScroll.classList.add('spinning');
+            titleScroll.classList.remove('stopping');
+            titleReel.style.display = 'flex';
 
-                    if (index === 2) {
-                        checkWin(results);
-                        isSpinning = false;
-                        animateLever(0);
-                    }
-                }, time);
-            });
-        }
-
-        function checkWin(results) {
-            let won = false;
-            let winAmount = 0;
-
-            if (results[0] === results[1] && results[1] === results[2]) {
-                winAmount = 500;
-                winMessage.innerText = "JACKPOT! 💎";
-                winMessage.classList.add('win-pop');
-                playSound('win');
-                startConfetti();
-                won = true;
-            } else if (results[0] === results[1] || results[1] === results[2] || results[0] === results[2]) {
-                winAmount = 50;
-                winMessage.innerText = "NICE MATCH!";
-                winMessage.classList.add('win-pop');
-                playSound('win');
-                startConfetti();
-                won = true;
-            } else {
-                winMessage.innerText = "";
+            let article;
+            try {
+                article = await fetchRandomArticle();
+            } catch (e) {
+                article = { title: 'Connection Error', extract: 'Could not reach Wikipedia. Check your connection and try again.', content_urls: { desktop: { page: 'https://en.wikipedia.org' } } };
             }
 
-            if (won) {
-                score += winAmount;
-                wins++;
-                setTimeout(stopConfetti, 3000);
-            }
+            await new Promise(r => setTimeout(r, 1800));
+
+            titleScroll.classList.remove('spinning');
+            titleScroll.classList.add('stopping');
+            playSound('stop');
+
+            await new Promise(r => setTimeout(r, 700));
+
+            currentArticleUrl = article.content_urls.desktop.page;
+            titleReel.style.display = 'none';
+            document.getElementById('articleTitle').textContent = article.title;
+            document.getElementById('articleExtract').textContent = article.extract;
+            document.getElementById('articleContent').style.display = 'flex';
+
+            articles++;
             updateStats();
+
+            prefetchTitles();
+
+            isSpinning = false;
+            animateLever(0);
         }
 
         function updateStats() {
-            scoreEl.innerText = score;
-            winsEl.innerText = wins;
-            spinsEl.innerText = spins;
+            document.getElementById('articlesDisplay').textContent = articles;
+            document.getElementById('spinsDisplay').textContent = spins;
         }
 
         function animateLever(angle) {
