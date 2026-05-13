@@ -437,7 +437,11 @@
 
             <div class="reel-window">
                 <div class="article-container" id="articleContainer">
-                    <div class="article-titles-reel" id="titleReel">
+                    <div id="articlePlaceholder" style="text-align:center; padding: 24px 16px; color: #888;">
+                        <div style="font-size:2rem; margin-bottom:10px;">🎰</div>
+                        <div style="font-size:0.85rem; line-height:1.6;">Pull the lever to discover a random Wikipedia article</div>
+                    </div>
+                    <div class="article-titles-reel" id="titleReel" style="display:none;">
                         <div class="article-title-scroll" id="titleScroll"></div>
                     </div>
                     <div class="article-content" id="articleContent" style="display:none;">
@@ -571,6 +575,7 @@
             playSound('spin');
 
             document.getElementById('articleContent').style.display = 'none';
+            document.getElementById('articlePlaceholder').style.display = 'none';
             const titleScroll = document.getElementById('titleScroll');
             const titleReel = document.getElementById('titleReel');
 
