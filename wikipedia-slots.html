@@ -485,18 +485,35 @@
 
     <script>
         // --- GAME LOGIC ---
-        const symbols = ['🍒', '🍋', '🍇', '💎', '7️⃣', '🔔', '🍀'];
-        let score = 1000;
-        let wins = 0;
+        let articles = 0;
         let spins = 0;
         let isSpinning = false;
-        
-        const reelElements = [document.getElementById('reel1'), document.getElementById('reel2'), document.getElementById('reel3')];
-        const winMessage = document.getElementById('win-message');
-        const scoreEl = document.getElementById('score');
-        const winsEl = document.getElementById('wins-count');
-        const spinsEl = document.getElementById('spins-count');
+        let currentArticleUrl = null;
+        let prefetchedTitles = [];
+        let isHoveringButton = false;
+        let buttonTapCooldown = false;
+
         const leverArm = document.getElementById('lever-arm');
+
+        async function fetchRandomArticle() {
+            const res = await fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary');
+            if (!res.ok) throw new Error('Wikipedia fetch failed');
+            return res.json();
+        }
+
+        async function prefetchTitles(count = 12) {
+            const fetches = Array.from({ length: count }, () =>
+                fetch('https://en.wikipedia.org/api/rest_v1/page/random/summary')
+                    .then(r => r.json())
+                    .then(d => d.title)
+                    .catch(() => 'Unknown Article')
+            );
+            prefetchedTitles = await Promise.all(fetches);
+        }
+
+        function openCurrentArticle() {
+            if (currentArticleUrl) window.open(currentArticleUrl, '_blank');
+        }
 
         // Simple Audio Context
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -844,6 +861,8 @@
             clearTimeout(cameraTimeoutId);
             document.getElementById('loading-error').style.display = 'block';
         });
+
+        prefetchTitles();
 
     </script>
 </body>
