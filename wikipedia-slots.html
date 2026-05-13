@@ -22,7 +22,7 @@
             cursor: none; /* Hide default mouse cursor for immersion */
         }
 
-        /* The canvas sits on top for the hand skeleton and confetti */
+        /* The canvas sits on top for the hand skeleton */
         #output_canvas {
             position: absolute;
             top: 0;
@@ -268,10 +268,6 @@
             100% { transform: scale(1); opacity: 1; }
         }
         
-        .win-pop {
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-
         /* Mobile portrait */
         @media (max-width: 480px) {
             body {
@@ -632,53 +628,6 @@
         }
 
 
-        // --- CONFETTI SYSTEM ---
-        let particles = [];
-        let confettiActive = false;
-
-        function startConfetti() {
-            confettiActive = true;
-            particles = [];
-            for (let i = 0; i < 100; i++) {
-                particles.push({
-                    x: Math.random() * window.innerWidth,
-                    y: Math.random() * window.innerHeight - window.innerHeight,
-                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
-                    size: Math.random() * 10 + 5,
-                    speedY: Math.random() * 5 + 2,
-                    speedX: (Math.random() - 0.5) * 4,
-                    rotation: Math.random() * 360,
-                    rotationSpeed: (Math.random() - 0.5) * 10
-                });
-            }
-        }
-
-        function stopConfetti() {
-            confettiActive = false;
-            particles = [];
-        }
-
-        function updateAndDrawConfetti(ctx) {
-            if (!confettiActive) return;
-
-            particles.forEach(p => {
-                p.y += p.speedY;
-                p.x += p.speedX;
-                p.rotation += p.rotationSpeed;
-                if (p.y > window.innerHeight) {
-                    p.y = -20;
-                    p.x = Math.random() * window.innerWidth;
-                }
-                ctx.save();
-                ctx.translate(p.x, p.y);
-                ctx.rotate(p.rotation * Math.PI / 180);
-                ctx.fillStyle = p.color;
-                ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
-                ctx.restore();
-            });
-        }
-
-
         // --- COMPUTER VISION LOGIC ---
 
         const videoElement = document.getElementById('input_video');
@@ -706,8 +655,6 @@
             canvasElement.width = window.innerWidth;
             canvasElement.height = window.innerHeight;
             canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-
-            updateAndDrawConfetti(canvasCtx);
 
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 const landmarks = results.multiHandLandmarks[0];
