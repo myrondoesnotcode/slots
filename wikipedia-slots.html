@@ -639,6 +639,39 @@
         let isGrabbingLever = false;
         let grabStartY = 0;
         let readyToSpin = false;
+
+        // Touch/mouse drag on lever knob
+        function onLeverDragStart(y) {
+            if (isSpinning) return;
+            grabStartY = y;
+            leverKnob.classList.add('hovered');
+        }
+        function onLeverDragMove(y) {
+            if (isSpinning || !grabStartY) return;
+            const delta = y - grabStartY;
+            const angle = Math.min(Math.max(delta * 0.6, 0), 130);
+            animateLever(angle);
+            if (angle >= 100) {
+                if (!readyToSpin) { readyToSpin = true; leverKnob.classList.add('pulled'); playSound('cocked'); }
+            } else {
+                readyToSpin = false; leverKnob.classList.remove('pulled');
+            }
+        }
+        function onLeverDragEnd() {
+            if (!grabStartY) return;
+            if (readyToSpin && !isSpinning) triggerSpin();
+            else animateLever(0);
+            grabStartY = 0;
+            readyToSpin = false;
+            leverKnob.classList.remove('hovered', 'pulled');
+        }
+
+        leverKnob.addEventListener('touchstart',  e => { e.preventDefault(); onLeverDragStart(e.touches[0].clientY); }, { passive: false });
+        leverKnob.addEventListener('touchmove',   e => { e.preventDefault(); onLeverDragMove(e.touches[0].clientY); },  { passive: false });
+        leverKnob.addEventListener('touchend',    e => { e.preventDefault(); onLeverDragEnd(); },                        { passive: false });
+        leverKnob.addEventListener('mousedown',   e => onLeverDragStart(e.clientY));
+        window.addEventListener  ('mousemove',    e => { if (grabStartY) onLeverDragMove(e.clientY); });
+        window.addEventListener  ('mouseup',      e => { if (grabStartY) onLeverDragEnd(); });
         
         function getLeverRect() {
             const rect = leverKnob.getBoundingClientRect();
