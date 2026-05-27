@@ -181,6 +181,19 @@
             z-index: 100;
         }
 
+        .loading-dot {
+            width: 12px; height: 12px;
+            background: #ffd700;
+            border-radius: 50%;
+            display: inline-block;
+            animation: dotPulse 0.8s ease-in-out infinite;
+        }
+
+        @keyframes dotPulse {
+            0%, 100% { opacity: 0.2; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
         /* Win Message Animation */
         @keyframes popIn {
             0% { transform: scale(0); opacity: 0; }
@@ -349,10 +362,15 @@
     <!-- Loading Screen -->
     <div id="loading" class="loading-screen">
         <h1 class="text-4xl text-yellow-400 mb-4 font-bold">Setting up Casino...</h1>
-        <p class="text-gray-400">Please enable your camera to control the hand.</p>
+        <p id="loading-status" class="text-gray-400">Loading AI model...</p>
         <p class="text-gray-600 text-sm mt-2">(Your video is NOT shown on screen)</p>
+        <div style="margin-top:20px; display:flex; gap:8px;">
+            <span class="loading-dot" style="animation-delay:0s"></span>
+            <span class="loading-dot" style="animation-delay:0.2s"></span>
+            <span class="loading-dot" style="animation-delay:0.4s"></span>
+        </div>
         <div id="loading-error" style="display:none; margin-top:20px; text-align:center;">
-            <p class="text-red-400 mb-4">Camera unavailable or timed out.</p>
+            <p class="text-red-400 mb-4">Taking too long? Try tapping below.</p>
             <button id="skip-camera-btn" onclick="skipCamera()" style="background:#ffd700;color:#111;padding:12px 28px;border:none;border-radius:25px;font-size:1rem;font-weight:bold;cursor:pointer;">
                 Play Without Camera
             </button>
@@ -748,10 +766,15 @@
 
         hands.onResults(onResults);
 
-        // Show "Play Without Camera" button if setup takes too long (12s on mobile, 20s on desktop)
+        // Progress status messages while loading
+        const statusEl = document.getElementById('loading-status');
+        setTimeout(() => { if (statusEl) statusEl.textContent = 'Starting camera...'; }, 3000);
+        setTimeout(() => { if (statusEl) statusEl.textContent = 'Almost ready...'; }, 8000);
+
+        // Show "Play Without Camera" button if setup takes too long (30s on mobile, 25s on desktop)
         const cameraTimeoutId = setTimeout(() => {
             document.getElementById('loading-error').style.display = 'block';
-        }, isMobile ? 12000 : 20000);
+        }, isMobile ? 30000 : 25000);
 
         const camWidth  = isMobile ? 640 : 1280;
         const camHeight = isMobile ? 360 : 720;
